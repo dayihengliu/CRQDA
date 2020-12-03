@@ -42,7 +42,7 @@ Before training the Transformer-based Autoencoder, please put the checkpoint fil
 Then train the Transformer-based Autoencoder with this script:
 ```
 cd crqda
-./train_run.sh
+./run_train.sh
 ```
 The Transformer-based Autoencoder will be saved at `data/ae_models`.
 
