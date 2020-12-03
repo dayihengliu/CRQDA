@@ -54,7 +54,7 @@ python inference.py \
 --OS_ID 0 \
 --GAP 33000 \
 --NEG \
---ae_model_path '/data/ae_models/pytorch_model.bin'
+--ae_model_path 'data/ae_models/pytorch_model.bin'
 ```
 set `--NEG` to generate unanswerable questions, and `--para` to generate answerable questions. Since the rewriting process is slow, we set up a manual parallel rewriting function, set `OS_ID` to indicate which GPU should be used for this rewriting, and `GAP` is the number of original training samples should be rewritten in this GPU.
 
