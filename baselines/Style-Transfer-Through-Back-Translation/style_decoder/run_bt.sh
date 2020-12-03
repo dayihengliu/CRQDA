@@ -1,0 +1,1 @@
+python translate.py -encoder ../models/translation/french_english/french_english.pt -decoder ../models/translation/french_english/french_english.pt -src ../data/squad2_question.fr -output ../data/squad2_question.en2 -replace_unk $true -gpu 0

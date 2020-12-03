@@ -1,0 +1,1 @@
+python code/augment.py --input=data/squad2.txt --output=data/squad2_aug_noclean.txt --num_aug=1 --alpha=0.1

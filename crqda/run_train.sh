@@ -1,0 +1,19 @@
+python -u -m torch.distributed.launch --nproc_per_node=4 --master_addr 127.0.0.1 --master_port 9530 ./ae_train.py \
+--fp16 \
+--model_type 'roberta' \
+--model_name_or_path 'data/mrc_model/' \
+--train_file 'data/wikicorpus_en_one_article_per_line.txt' \
+--output_dir 'data/ae_models' \
+--version_2_with_negative \
+--do_lower_case \
+--max_query_length 64 \
+--per_gpu_train_batch_size 16 \
+--per_gpu_eval_batch_size 16 \
+--learning_rate 5e-5 \
+--gradient_accumulation_steps 16 \
+--weight_decay 0.01 \
+--num_train_epochs=100 \
+--warmup_steps=10000 \
+--logging_steps=50 \
+--save_steps=5000 \
+--threads 24
