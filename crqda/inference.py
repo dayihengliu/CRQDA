@@ -1,31 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
 
-
-# coding=utf-8
-# Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
-# Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """ Finetuning the library models for question-answering on SQuAD (DistilBERT, Bert, XLM, XLNet)."""
 from __future__ import absolute_import, division, print_function
 import os
 import argparse
 parser = argparse.ArgumentParser()
 
-#args = parser.parse_args()
+
 parser.add_argument("--OS_ID", default=0, type=int, required=True,
                         help="")
 parser.add_argument("--GAP", default=33000, type=int, required=True,
@@ -42,7 +25,7 @@ parser.add_argument("--span", type=bool, default=False)
 mata_args = parser.parse_args()
 OS_ID = mata_args.OS_ID
 GAP = mata_args.GAP
-#mata_args.NEG = False
+
 if mata_args.para:
     mata_args.NEG = False
 else:
@@ -88,7 +71,6 @@ from transformers import (WEIGHTS_NAME, BertConfig,
 
 from transformers import AdamW, get_linear_schedule_with_warmup, squad_convert_examples_to_features_cg
 
-from utils import *
 
 
 
@@ -199,7 +181,7 @@ def train(args, train_dataset, model, tokenizer):
                                                           output_device=args.local_rank,
                                                           find_unused_parameters=True)
 
-    # Train!
+ 
     logger.info("***** Running training *****")
     logger.info("  Num examples = %d", len(train_dataset))
     logger.info("  Num Epochs = %d", args.num_train_epochs)
@@ -216,7 +198,7 @@ def train(args, train_dataset, model, tokenizer):
     set_seed(args)  # Added here for reproductibility (even between python 2 and 3)
     
     for _ in train_iterator:
-    #while True:
+   
         epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0])
         for step, batch in enumerate(epoch_iterator):
             #for kk in range(10000):
@@ -257,7 +239,7 @@ def train(args, train_dataset, model, tokenizer):
             else:
                 loss.backward()
 
-            #return inputs, emb
+            
 
             tr_loss += loss.item()
 
@@ -272,10 +254,10 @@ def train(args, train_dataset, model, tokenizer):
                 scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
-                #args.logging_steps = 1 #！！！
+                
                 # Log metrics
                 if args.local_rank in [-1, 0] and args.logging_steps > 0 and global_step % args.logging_steps == 0:
-                    #print('logging')
+                    
                     if args.local_rank == -1 and args.evaluate_during_training:  # Only evaluate when single GPU otherwise metrics may not average well
                         _ = evaluate(args, model, tokenizer)
                         """
@@ -315,20 +297,14 @@ def train(args, train_dataset, model, tokenizer):
                     model_to_save.save_pretrained(output_dir)
                     torch.save(args, os.path.join(output_dir, 'training_args.bin'))
                     logger.info("Saving model checkpoint to %s", output_dir)
-            #break #!!        
+                   
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
             break
-        """
-        print('start eval')
-        print('args.local_rank', args.local_rank)
-        if args.local_rank == -1:
-            print('args.local_rank!', args.local_rank)
-            _ = evaluate(args, model, tokenizer)
-        """
+        
     if args.local_rank in [-1, 0]:
         tb_writer.close()
     
@@ -353,7 +329,7 @@ def evaluate(args, model, tokenizer, prefix=""):
     if args.n_gpu > 1:
         model = torch.nn.DataParallel(model)
 
-    # Eval!
+    # Eval
     logger.info("***** Running evaluation {} *****".format(prefix))
     logger.info("  Num examples = %d", len(dataset))
     logger.info("  Batch size = %d", args.eval_batch_size)
@@ -384,7 +360,7 @@ def evaluate(args, model, tokenizer, prefix=""):
 
 
         outputs = model(**inputs)
-        #loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
+        
         prob = outputs[2]
         latent = outputs[1]
         
@@ -399,12 +375,11 @@ def evaluate(args, model, tokenizer, prefix=""):
                                         max_len=30,
                                         start_id=0)
         q = questions.cpu().detach().numpy().tolist()
-        #print('questions[0]', tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(q[0])))
         g = generator_text.cpu().detach().numpy().tolist()
-        #print('generator_text[0]', tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(g[0])))
+        
         raw_questions += q
         gen_questions += g
-        #break
+        
     
    
     rouge_1_list = []
@@ -422,12 +397,12 @@ def evaluate(args, model, tokenizer, prefix=""):
         rouge_2 = rouge.rouge_n(summary=gen, references=ground_truth, n=2)
         rouge_l = rouge.rouge_l(summary=gen,references=ground_truth)
         bleu_score = bleu.bleu(summary=gen, references=ground_truth)
-        #print(rouge_1, rouge_2, rouge_l, bleu_score)
+        
         rouge_1_list.append(rouge_1)
         rouge_2_list.append(rouge_2)
         rouge_L_list.append(rouge_l)
         bleu_list.append(bleu_score)
-        #break
+        
     print(len(bleu_list))
     print("ROUGE-1: {:.3f}, ROUGE-2: {:.3f}, ROUGE-L: {:.3f}, BLEU: {:.3f}".format(
         np.mean(rouge_1_list) * 100., np.mean(rouge_2_list) * 100., np.mean(rouge_L_list) * 100., np.mean(bleu_list)
@@ -450,7 +425,7 @@ def test_mrc(args, model, tokenizer, prefix=""):
     if args.n_gpu > 1:
         model = torch.nn.DataParallel(model)
 
-    # Eval!
+    # Eval
     logger.info("***** Running evaluation {} *****".format(prefix))
     logger.info("  Num examples = %d", len(dataset))
     logger.info("  Batch size = %d", args.eval_batch_size)
@@ -654,7 +629,7 @@ for p in model.roberta.embeddings.parameters():
 # Note that DistributedSampler samples randomly
 
 features_and_dataset = torch.load('/data/cached_train_roberta-large_384')
-#features, dataset = features_and_dataset["features"], features_and_dataset["dataset"]
+
 if OS_ID == 3:
     dataset = torch.utils.data.Subset(features_and_dataset["dataset"], range(OS_ID * GAP, len(features_and_dataset["dataset"])))
 else:
@@ -667,7 +642,7 @@ eval_dataloader = DataLoader(dataset, sampler=eval_sampler, batch_size=args.eval
 print(len(dataset))
 
 
-# In[ ]:
+
 
 
 
@@ -675,7 +650,7 @@ import pickle
 def Jaccrad(s1, s2):
     terms_reference = [t.lower() for t in s2.split()]
     terms_model = [t.lower() for t in s1.split()]
-    #print(terms_model, terms_reference)
+    
     grams_reference = set(terms_reference)
     grams_model = set(terms_model)
     temp=0
@@ -701,15 +676,7 @@ max_length = 384
 JACARD_UPPER = 1.0
 JACARD_LOWER = 0.3
 
-"""
-dag_inputs = {
-    'questions':questions,
-    'question_masks':question_masks,
-    'question_targets':question_targets,
-    'question_targets_masks': question_targets_masks,
-    'input_embds': embedding_data
-}
-"""
+
 gen_results = dict()
 
 print('scaled', scaled)
