@@ -19,23 +19,14 @@ from transformers import (WEIGHTS_NAME, BertConfig,
 class DAG(RobertaForQuestionAnsweringClassify):
     def __init__(self, config, N=4, d_ff=1024):
         super(DAG, self).__init__(config)
-        #print('self.roberta.embeddings', self.roberta.embeddings)
         self.ae_model = make_model(d_vocab=50265, N=N, d_model = 1024, d_ff=d_ff, h=16, dropout=0.1)
         self.ae_criterion = LabelSmoothing(size=50265, padding_idx=1, smoothing=0.1)
-        #print('self.roberta.embeddings.requires_grad', self.roberta.embeddings.requires_grad)
-        #self.roberta.embeddings.requires_grad = False
-        #print('self.roberta.embeddings.requires_grad', self.roberta.embeddings.requires_grad)
+        
         
     def forward(self, input_ids=None, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None,
                 start_positions=None, end_positions=None, labels=None, 
                 questions=None, question_masks=None, question_targets=None, question_targets_masks=None, input_embds=None):
-        """
-        input_ids = input_ids.view(-1, input_ids.size(-1))
-        attention_mask = attention_mask.view(-1, attention_mask.size(-1)) if position_ids is not None else None
-        token_type_ids = token_type_ids.view(-1, token_type_ids.size(-1)) if position_ids is not None else None
-        position_ids = position_ids.view(-1, position_ids.size(-1)) if position_ids is not None else None
-        head_mask = head_mask.view(-1, head_mask.size(-1)) if position_ids is not None else None
-        """
+       
         if input_ids is not None:
             #print('questions', questions.shape)
             emb = self.roberta.embeddings(input_ids=questions, 
@@ -44,7 +35,7 @@ class DAG(RobertaForQuestionAnsweringClassify):
         else:
             emb = input_embds
 
-        #print('emb', emb.sum())
+        
         latent, prob = self.ae_model(src_emb=emb, 
                                      src=questions, 
                                      tgt=questions, 
@@ -55,7 +46,7 @@ class DAG(RobertaForQuestionAnsweringClassify):
                                             question_targets.contiguous().view(-1)) / (questions != 1).data.sum().data
 
        
-        #print('loss_rec', loss_rec)
+        
         outputs = (loss_rec), latent, prob
         return outputs
     
@@ -83,11 +74,9 @@ class DAG(RobertaForQuestionAnsweringClassify):
         if output_embedding:
             emb = outputs[-1]
         sequence_output = outputs[0]
-        #labels = cls_index
+        
         classification_logits = self.classifier(sequence_output)
-        #print('labels======================================', labels)
-        #print('num_labels=================================', self.num_labels)
-        #outputs = (classification_logits,) + outputs[2:]
+        
         
         if labels is not None:
             if self.num_labels == 1:
