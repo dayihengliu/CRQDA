@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
 
-
-# coding=utf-8
 
 from __future__ import absolute_import, division, print_function
 import os
-#os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 
 from transformers.data.processors.squad import SquadV1Processor, SquadV2Processor, WikiProcessor, SquadResult
 from transformers.data.metrics.squad_metrics import compute_predictions_logits, compute_predictions_log_probs, squad_evaluate
@@ -91,12 +88,7 @@ def get_question_ids(input_ids, pad_id=1, max_query_length=64):
         question_masks.append(question_mask)
         question_targets.append(question_target)
     
-    #print(np.array(question_ids).shape)
-    #for question_id in question_ids:
-    #    print(tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(question_id)))
-    #    print(tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(question_target)))
-    #    #print(tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(question_id)))
-    #    break
+    
     question_ids = torch.tensor([question_id for question_id in question_ids], dtype=torch.long).cuda()
     question_masks = torch.tensor([question_mask for question_mask in question_masks], dtype=torch.long).cuda()
     question_targets = torch.tensor([question_target for question_target in question_targets], dtype=torch.long).cuda()
@@ -114,14 +106,13 @@ def postprocess_doc(rd):
     return tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(rd))
 
 def postprocess_raw(rq):
-    #print(tokenizer.convert_ids_to_tokens(rq[1: rq.index(1)]))
+    
     return tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(rq[1: rq.index(1)-1])) + ' ?'
 
 def postprocess_gen(gq):
     if 2 not in gq:
-        #print('!!!!!', gq, tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(gq)) +' ?')
         return tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(gq))
-    #print(tokenizer.convert_ids_to_tokens(gq[: gq.index(2)]))
+    
     return tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(gq[: gq.index(2)-1])) +' ?'
 
 def train(args, train_dataset, model, tokenizer):
@@ -161,19 +152,17 @@ def train(args, train_dataset, model, tokenizer):
 
     # multi-gpu training (should be after apex fp16 initialization)
     if args.n_gpu > 1:
-        logger.info('torch.nn.DataParallel!!!!!!!!')
         model = torch.nn.DataParallel(model)
 
     # Distributed training (should be after apex fp16 initialization)
     if args.local_rank != -1:
-        
-        logger.info('torch.nn.parallel.DistributedDataParallel!!!!!!!!')
+
         logger.info('n_gpu {}'.format(args.n_gpu))
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank],
                                                           output_device=args.local_rank,
                                                           find_unused_parameters=True)
 
-    # Train!
+    # Train
     logger.info("***** Running training *****")
     logger.info("  Num examples = %d", len(train_dataset))
     logger.info("  Num Epochs = %d", args.num_train_epochs)
@@ -190,28 +179,12 @@ def train(args, train_dataset, model, tokenizer):
     set_seed(args)  # Added here for reproductibility (even between python 2 and 3)
     
     for _ in train_iterator:
-    #while True:
         epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0])
         for step, batch in enumerate(epoch_iterator):
-            #for kk in range(10000):
             model.train()
             batch = tuple(t.to(args.device) for t in batch)
             questions, question_masks, question_targets, question_targets_masks = get_question_ids(batch[0])
 
-            '''
-            inputs = {
-                'input_ids':       batch[0],
-                'attention_mask':  batch[1],
-                'token_type_ids': None if args.model_type in ['xlm', 'roberta', 'distilbert'] else batch[2],
-                'start_positions': batch[3],
-                'end_positions':   batch[4],
-                'labels': batch[7],
-                'questions':questions,
-                'question_masks':question_masks,
-                'question_targets':question_targets,
-                'question_targets_masks': question_targets_masks
-            }
-            '''
             inputs = {
                 'questions':questions,
                 'question_masks':question_masks,
@@ -228,9 +201,7 @@ def train(args, train_dataset, model, tokenizer):
             loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
             prob = outputs[2]
             latent = outputs[1]
-            #print('latent', latent.shape)
-            #emb = outputs[-1]
-            #print('emb', emb.shape, emb)
+           
             if args.n_gpu > 1:
                 loss = loss.mean() # mean() to average on multi-gpu parallel (not distributed) training
             if args.gradient_accumulation_steps > 1:
@@ -241,8 +212,6 @@ def train(args, train_dataset, model, tokenizer):
                     scaled_loss.backward()
             else:
                 loss.backward()
-
-            #return inputs, emb
 
             tr_loss += loss.item()
 
@@ -257,7 +226,7 @@ def train(args, train_dataset, model, tokenizer):
                 scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
-                #args.logging_steps = 1 #！！！
+                
                 # Log metrics
                 if args.local_rank in [-1, 0] and args.logging_steps > 0 and global_step % args.logging_steps == 0:
                     #print('logging')
@@ -272,8 +241,7 @@ def train(args, train_dataset, model, tokenizer):
                     logger.info('global_step: {} loss: {}'.format(global_step, (tr_loss - logging_loss)/args.logging_steps))
                    
                     logging_loss = tr_loss
-                    #print('\n')
-                    
+
                     if hasattr(model, 'ae_model'):
                         generator_text = model.ae_model.greedy_decode(latent,
                                                     max_len=30,
@@ -283,19 +251,11 @@ def train(args, train_dataset, model, tokenizer):
                                                     max_len=30,
                                                     start_id=0)
                     q = questions.cpu().detach().numpy()[0]
-                    #print('kk \n', kk)
-                    #print('loss', loss)
                     
                     logger.info('questions[0] {}'.format(tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(q))))
                     g = generator_text.cpu().detach().numpy()[0]
 
-                    #print('prob[0]', prob[0])
-                    #_, next_word = torch.max(prob, dim=-1)
-                    #nw = next_word.cpu().detach().numpy()[0]
-                    #print(next_word.shape, nw.shape, nw)
-                    #print('next_word[0]', tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(nw)))
                     logger.info('generator_text[0] {}'.format(tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(g))))
-                    #print('generator_text[0]', tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(g)))
                     logger.info('\n')
                 # Save model checkpoint
                 if args.local_rank in [-1, 0] and args.save_steps > 0 and global_step % args.save_steps == 0:
@@ -306,20 +266,14 @@ def train(args, train_dataset, model, tokenizer):
                     model_to_save.save_pretrained(output_dir)
                     torch.save(args, os.path.join(output_dir, 'training_args.bin'))
                     logger.info("Saving model checkpoint to %s", output_dir)
-            #break #!!        
+     
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
             break
-        """
-        print('start eval')
-        print('args.local_rank', args.local_rank)
-        if args.local_rank == -1:
-            print('args.local_rank!', args.local_rank)
-            _ = evaluate(args, model, tokenizer)
-        """
+
     if args.local_rank in [-1, 0]:
         tb_writer.close()
     
@@ -344,7 +298,7 @@ def evaluate(args, model, tokenizer, prefix=""):
     if args.n_gpu > 1:
         model = torch.nn.DataParallel(model)
 
-    # Eval!
+    # Eval
     logger.info("***** Running evaluation {} *****".format(prefix))
     logger.info("  Num examples = %d", len(dataset))
     logger.info("  Batch size = %d", args.eval_batch_size)
@@ -375,12 +329,9 @@ def evaluate(args, model, tokenizer, prefix=""):
 
 
         outputs = model(**inputs)
-        #loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
         prob = outputs[2]
         latent = outputs[1]
         
-        
-           
         if hasattr(model, 'ae_model'):
             generator_text = model.ae_model.greedy_decode(latent,
                                             max_len=30,
@@ -390,12 +341,9 @@ def evaluate(args, model, tokenizer, prefix=""):
                                         max_len=30,
                                         start_id=0)
         q = questions.cpu().detach().numpy().tolist()
-        #print('questions[0]', tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(q[0])))
         g = generator_text.cpu().detach().numpy().tolist()
-        #print('generator_text[0]', tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(g[0])))
         raw_questions += q
         gen_questions += g
-        #break
     
    
     rouge_1_list = []
@@ -408,20 +356,15 @@ def evaluate(args, model, tokenizer, prefix=""):
         ground_truth = postprocess_raw(rq).lower()
         gen = postprocess_gen(gq).lower()
 
-        #ground_truth = data['golden'].lower()
-        #gen = data['generated'].lower()
-        #print(ground_truth)
-        #print(gen)
         rouge_1 = rouge.rouge_n(summary=gen, references=ground_truth, n=1)
         rouge_2 = rouge.rouge_n(summary=gen, references=ground_truth, n=2)
         rouge_l = rouge.rouge_l(summary=gen,references=ground_truth)
         bleu_score = bleu.bleu(summary=gen, references=ground_truth)
-        #print(rouge_1, rouge_2, rouge_l, bleu_score)
         rouge_1_list.append(rouge_1)
         rouge_2_list.append(rouge_2)
         rouge_L_list.append(rouge_l)
         bleu_list.append(bleu_score)
-        #break
+
     print(len(bleu_list))
     print("ROUGE-1: {:.3f}, ROUGE-2: {:.3f}, ROUGE-L: {:.3f}, BLEU: {:.3f}".format(
         np.mean(rouge_1_list) * 100., np.mean(rouge_2_list) * 100., np.mean(rouge_L_list) * 100., np.mean(bleu_list)
@@ -491,10 +434,6 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
     if output_examples:
         return dataset, examples, features
     return dataset
-
-
-# In[3]:
-
 
 
 
@@ -773,7 +712,6 @@ def main():
 
     model.to(args.device)
 
-    #logger.info("Training/evaluation parameters %s", args)
 
     if args.fp16:
         try:
