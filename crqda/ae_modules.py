@@ -5,12 +5,10 @@ from torch import optim
 import torch.nn.functional as F
 import math, copy, time
 import torch.nn.utils.rnn as rnn_utils
-#from data import get_cuda, to_var, calc_bleu
+
 import numpy as np
 
 def to_var(x, volatile=False):
-    #if torch.cuda.is_available():
-    #    x = x.cuda()
     return Variable(x, volatile=volatile)
 def clones(module, N):
     """Produce N identical layers."""
@@ -252,8 +250,7 @@ class AttentionScore(nn.Module):
         Output:
         scores: batch x word_num1 x word_num2
         '''
-        # x1 = dropout(x1, p = dropout_p, training = self.training)
-        # x2 = dropout(x2, p = dropout_p, training = self.training)
+
 
         x1_rep = x1
         x2_rep = x2
@@ -268,8 +265,7 @@ class AttentionScore(nn.Module):
                 x1_rep = F.relu(x1_rep)
                 x2_rep = F.relu(x2_rep)
             x1_rep = x1_rep * self.diagonal.expand_as(x1_rep)
-            # x1_rep is (Wx1)D or Relu(Wx1)D
-            # x1_rep: batch x word_num1 x dim (corr=1) or hidden_size (corr=2,3)
+
 
         if self.correlation_func == 4:
             x2_rep = self.linear(x2_rep.contiguous().view(-1, dim)).view(batch, word_num2, dim)  # Wx2
@@ -303,47 +299,27 @@ class EncoderDecoder(nn.Module):
         self.linear = nn.Linear(input_size * 2, input_size)
         self.attention = AttentionScore(input_size, input_size)
         self.gru_decoder = nn.GRU(input_size * 2, input_size, 1)
-        #self.ae_criterion = LabelSmoothing(size=vocab_size, padding_idx=id_pad, smoothing=0.1)
 
     def forward(self, src, src_emb, tgt, src_mask, tgt_mask):
         """
         Take in and process masked src and target sequences.
         """
-        #print('f src_mask', src_mask, src_mask.shape)
-        #print('f tgt_mask', tgt_mask, tgt_mask.shape)
-        #print('self.src_embed(src)', self.src_embed(src).shape)
-        #print('src_emb', src_emb.shape)
+        
         memory = self.encoder(src_emb, src_mask)  # (batch_size, max_src_seq, d_model)
-        # attented_mem=self.attention(memory,memory,memory,src_mask)
-        # memory=attented_mem
-        #print('memory', memory.shape)
+        
         score = self.attention(memory, memory, src_mask)
-        #print('score', score.shape)
         attent_memory = score.bmm(memory)
-        # memory=self.linear(torch.cat([memory,attent_memory],dim=-1))
-        #print('attent_memory', attent_memory.shape)
         memory, _ = self.gru(attent_memory)
-        #print('gru_memory',memory.shape)
         '''
         score=torch.sigmoid(self.linear(memory))
         memory=memory*score
         '''
         latent = torch.sum(memory, dim=1)  # (batch_size, d_model)
-        #print('de latent', latent.shape)
-        #print('de tgt', tgt, tgt.shape)
-        #print('de tgt_mask', tgt_mask, tgt_mask.shape)
         logit = self.decode(latent.unsqueeze(1), tgt, tgt_mask)  # (batch_size, max_tgt_seq, d_model)
-        # logit,_=self.gru_decoder(logit)
-        #print('logit', logit.shape)
         prob = self.generator(logit)  # (batch_size, max_seq, vocab_size)
-        #print('prob', prob.shape)
         
         return latent, prob
     
-    """
-    def encode(self, src, src_mask):
-        return self.encoder(self.src_embed(src), src_mask)
-    """
     
     def decode(self, memory, tgt, tgt_mask):
         # memory: (batch_size, 1, d_model)
@@ -360,25 +336,14 @@ class EncoderDecoder(nn.Module):
         batch_size = latent.size(0)
         ys = to_var(torch.ones(batch_size, 1).fill_(start_id).long().to('cuda'))  # (batch_size, 1)
 
-        #print('g latent.unsqueeze(1)', latent.unsqueeze(1).shape)
+
         for i in range(max_len - 1):
-            # input("==========")
-            # print("="*10, i)
-            # print("ys", ys.size())  # (batch_size, i)
-            # print("tgt_mask", subsequent_mask(ys.size(1)).size())  # (1, i, i)
             tgt_mask = to_var(subsequent_mask(ys.size(1)).long().to('cuda'))
-            #print('g ys', ys, ys.shape)
-            #print('g tgt_mask', tgt_mask, tgt_mask.shape)
             out = self.decode(latent.unsqueeze(1), ys, tgt_mask)
             prob = self.generator(out[:, -1])
-            #print("g prob", prob.size())  # (batch_size, vocab_size)
             _, next_word = torch.max(prob, dim=1)
-            #print("g next_word_g", next_word.size())  # (batch_size)
-
-            #print("g next_word.unsqueeze(1)", next_word.unsqueeze(1).size())
-
             ys = torch.cat([ys, next_word.unsqueeze(1)], dim=1)
-            #print("g ys_cat", ys.size())
+
         return ys[:, 1:]
 
 
@@ -510,7 +475,6 @@ class Classifier(nn.Module):
         out = self.fc3(out)
         out = self.sigmoid(out)
 
-        # out = F.log_softmax(out, dim=1)
         return out  # batch_size * label_size
 
 
